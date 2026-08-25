@@ -1,94 +1,44 @@
 import os
 
-from flask import Flask, jsonify
+import requests
+
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+
+TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+def send_message(chat_id, text):
+
+    if not BOT_TOKEN:
+
+        return
+
+    requests.post(
+
+        f"{TELEGRAM_API}/sendMessage",
+
+        json={
+
+            "chat_id": chat_id,
+
+            "text": text,
+
+            "parse_mode": "HTML"
+
+        },
+
+        timeout=10
+
+    )
 
 @app.route("/")
 
 def home():
 
-    return """
-
-    <!DOCTYPE html>
-
-    <html lang="uk">
-
-    <head>
-
-        <meta charset="UTF-8">
-
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-        <title>OTC Signal Pro</title>
-
-        <style>
-
-            body {
-
-                background: #0b1020;
-
-                color: white;
-
-                font-family: Arial, sans-serif;
-
-                text-align: center;
-
-                padding: 40px 20px;
-
-            }
-
-            .card {
-
-                max-width: 500px;
-
-                margin: auto;
-
-                background: #151c30;
-
-                padding: 30px;
-
-                border-radius: 20px;
-
-            }
-
-            h1 {
-
-                margin-bottom: 10px;
-
-            }
-
-            .status {
-
-                color: #55e6a5;
-
-                font-weight: bold;
-
-            }
-
-        </style>
-
-    </head>
-
-    <body>
-
-        <div class="card">
-
-            <h1>OTC Signal Pro</h1>
-
-            <p>Trading Signal Dashboard</p>
-
-            <p class="status">● SYSTEM ONLINE</p>
-
-            <p>Application successfully deployed.</p>
-
-        </div>
-
-    </body>
-
-    </html>
-
-    """
+    return "OTC Signal Pro is ONLINE"
 
 @app.route("/health")
 
@@ -101,6 +51,82 @@ def health():
         "app": "OTC Signal Pro"
 
     })
+
+@app.route("/telegram", methods=["POST"])
+
+def telegram_webhook():
+
+    data = request.get_json(silent=True) or {}
+
+    message = data.get("message")
+
+    if message:
+
+        chat_id = message["chat"]["id"]
+
+        text = message.get("text", "")
+
+        if text == "/start":
+
+            send_message(
+
+                chat_id,
+
+                "🤖 <b>OTC SIGNAL PRO</b>\n\n"
+
+                "✅ Bot connected\n"
+
+                "📊 Signal system: DEMO\n\n"
+
+                "Example signal:\n"
+
+                "💱 EUR/USD OTC\n"
+
+                "🟢 UP ⬆️\n"
+
+                "⏱ M1\n"
+
+                "🎯 ENTRY: 15:42:30\n\n"
+
+                "⚠️ Test mode — no automatic trades."
+
+            )
+
+        elif text == "/test":
+
+            send_message(
+
+                chat_id,
+
+                "🚨 <b>OTC SIGNAL</b>\n\n"
+
+                "💱 EUR/USD OTC\n"
+
+                "🟢 UP ⬆️\n"
+
+                "⏱ M1\n"
+
+                "🎯 ENTRY: 15:42:30\n"
+
+                "⌛ Expiration: 5 sec\n\n"
+
+                "🧪 TEST SIGNAL"
+
+            )
+
+        else:
+
+            send_message(
+
+                chat_id,
+
+                "OTC Signal Pro is online.\n\n"
+
+                "Use /start or /test."
+
+            )
+
+    return jsonify({"ok": True})
 
 if __name__ == "__main__":
 
