@@ -1,6 +1,13 @@
+
 import os
 
+import random
+
 import requests
+
+from datetime import datetime, timedelta
+
+from zoneinfo import ZoneInfo
 
 from flask import Flask, request, jsonify
 
@@ -11,6 +18,26 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 BASE_URL = "https://otc-signal-pro.onrender.com"
 
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+# Час Італії
+
+TIMEZONE = ZoneInfo("Europe/Rome")
+
+# DEMO-пари
+
+PAIRS = [
+
+    "EUR/USD OTC",
+
+    "GBP/USD OTC",
+
+    "USD/JPY OTC",
+
+    "AUD/USD OTC",
+
+    "EUR/GBP OTC",
+
+]
 
 def send_message(chat_id, text):
 
@@ -29,6 +56,62 @@ def send_message(chat_id, text):
         },
 
         timeout=15
+
+    )
+
+def next_entry_time():
+
+    """
+
+    Вибираємо майбутній момент входу на :30.
+
+    Даємо щонайменше ~45 секунд на підготовку.
+
+    """
+
+    now = datetime.now(TIMEZONE)
+
+    entry = now.replace(second=30, microsecond=0)
+
+    if entry <= now + timedelta(seconds=45):
+
+        entry += timedelta(minutes=1)
+
+    return entry
+
+def create_demo_signal():
+
+    entry = next_entry_time()
+
+    pair = random.choice(PAIRS)
+
+    direction = random.choice(["UP", "DOWN"])
+
+    if direction == "UP":
+
+        direction_text = "🟢 UP ⬆️"
+
+    else:
+
+        direction_text = "🔴 DOWN ⬇️"
+
+    return (
+
+        "🚨 <b>OTC SIGNAL — DEMO</b>\n\n"
+
+        f"💱 <b>{pair}</b>\n"
+
+        f"{direction_text}\n"
+
+        "⏱ M1\n"
+
+        f"🎯 <b>ENTRY: {entry.strftime('%H:%M:%S')}</b>\n"
+
+        "⌛ Expiration: 5 sec\n\n"
+
+        "⚠️ DEMO: UP/DOWN зараз вибирається випадково.\n"
+
+        "Не використовуй цей сигнал для реальної ставки."
 
     )
 
@@ -52,13 +135,11 @@ def setup_webhook():
 
         })
 
-    webhook_url = f"{BASE_URL}/telegram"
-
     response = requests.post(
 
         f"{TELEGRAM_API}/setWebhook",
 
-        json={"url": webhook_url},
+        json={"url": f"{BASE_URL}/telegram"},
 
         timeout=15
 
@@ -74,69 +155,69 @@ def telegram_webhook():
 
     message = data.get("message")
 
-    if message:
+    if not message:
 
-        chat_id = message["chat"]["id"]
+        return jsonify({"ok": True})
 
-        text = message.get("text", "")
+    chat_id = message["chat"]["id"]
 
-        if text == "/start":
+    text = message.get("text", "").strip()
 
-            send_message(
+    if text == "/start":
 
-                chat_id,
+        send_message(
 
-                "🤖 <b>OTC SIGNAL PRO</b>\n\n"
+            chat_id,
 
-                "✅ Bot connected\n"
+            "🤖 <b>OTC SIGNAL PRO</b>\n\n"
 
-                "📊 Signal system: DEMO\n\n"
+            "✅ Bot connected\n\n"
 
-                "💱 EUR/USD OTC\n"
+            "Команди:\n"
 
-                "🟢 UP ⬆️\n"
+            "/signal — тестовий OTC-сигнал\n"
 
-                "⏱ M1\n"
+            "/status — статус бота\n\n"
 
-                "🎯 ENTRY: 15:42:30\n\n"
+            "⚠️ Зараз працюємо в DEMO."
 
-                "⚠️ Test mode."
+        )
 
-            )
+    elif text == "/signal":
 
-        elif text == "/test":
+        send_message(chat_id, create_demo_signal())
 
-            send_message(
+    elif text == "/status":
 
-                chat_id,
+        now = datetime.now(TIMEZONE)
 
-                "🚨 <b>OTC SIGNAL</b>\n\n"
+        send_message(
 
-                "💱 EUR/USD OTC\n"
+            chat_id,
 
-                "🟢 UP ⬆️\n"
+            "✅ <b>OTC Signal Pro ONLINE</b>\n\n"
 
-                "⏱ M1\n"
+            f"🕐 {now.strftime('%H:%M:%S')}\n"
 
-                "🎯 ENTRY: 15:42:30\n"
+            "📊 Mode: DEMO\n"
 
-                "⌛ Expiration: 5 sec\n\n"
+            "🎯 Entry timing: :30"
 
-                "🧪 TEST SIGNAL"
+        )
 
-            )
+    else:
 
-        else:
+        send_message(
 
-            send_message(
+            chat_id,
 
-                chat_id,
+            "Команди:\n"
 
-                "OTC Signal Pro is online.\n"
+            "/signal\n"
 
-                "Use /start or /test."
+            "/status"
 
-            )
+        )
 
     return jsonify({"ok": True})
 
