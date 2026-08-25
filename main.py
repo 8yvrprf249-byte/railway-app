@@ -8,13 +8,11 @@ app = Flask(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
+BASE_URL = "https://otc-signal-pro.onrender.com"
+
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 def send_message(chat_id, text):
-
-    if not BOT_TOKEN:
-
-        return
 
     requests.post(
 
@@ -30,7 +28,7 @@ def send_message(chat_id, text):
 
         },
 
-        timeout=10
+        timeout=15
 
     )
 
@@ -40,17 +38,33 @@ def home():
 
     return "OTC Signal Pro is ONLINE"
 
-@app.route("/health")
+@app.route("/setup")
 
-def health():
+def setup_webhook():
 
-    return jsonify({
+    if not BOT_TOKEN:
 
-        "status": "ok",
+        return jsonify({
 
-        "app": "OTC Signal Pro"
+            "ok": False,
 
-    })
+            "error": "TELEGRAM_BOT_TOKEN is missing"
+
+        })
+
+    webhook_url = f"{BASE_URL}/telegram"
+
+    response = requests.post(
+
+        f"{TELEGRAM_API}/setWebhook",
+
+        json={"url": webhook_url},
+
+        timeout=15
+
+    )
+
+    return response.json()
 
 @app.route("/telegram", methods=["POST"])
 
@@ -78,8 +92,6 @@ def telegram_webhook():
 
                 "📊 Signal system: DEMO\n\n"
 
-                "Example signal:\n"
-
                 "💱 EUR/USD OTC\n"
 
                 "🟢 UP ⬆️\n"
@@ -88,7 +100,7 @@ def telegram_webhook():
 
                 "🎯 ENTRY: 15:42:30\n\n"
 
-                "⚠️ Test mode — no automatic trades."
+                "⚠️ Test mode."
 
             )
 
@@ -120,7 +132,7 @@ def telegram_webhook():
 
                 chat_id,
 
-                "OTC Signal Pro is online.\n\n"
+                "OTC Signal Pro is online.\n"
 
                 "Use /start or /test."
 
